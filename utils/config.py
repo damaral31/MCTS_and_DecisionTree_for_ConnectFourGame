@@ -1,5 +1,3 @@
-import os
-
 # Game configuration
 ROW = 6 
 COLUMN = 7
