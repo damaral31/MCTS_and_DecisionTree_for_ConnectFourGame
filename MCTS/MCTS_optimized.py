@@ -144,7 +144,6 @@ class MonteCarlo:
         prob = [child.visits / root.visits for child in root.children]
 
         ans = max(root.children, key=lambda c: c.visits)
-        print(ans.state.last_move[1])
         return ans.state.last_move[1], prob
 
     def best_child(self, node: Node) -> Node:
