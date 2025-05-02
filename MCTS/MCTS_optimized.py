@@ -5,7 +5,6 @@ from concurrent.futures import ProcessPoolExecutor
 from typing import Tuple, Any, Dict
 
 import utils.config as config
-
 from Game.ConnectFour import ConnectFour
 from MCTS.node import Node
 
@@ -89,18 +88,20 @@ def worker_mcts(state: ConnectFour, iterations: int, exploration: float) -> Dict
 
 class MonteCarlo:
 
+
     def __init__(self, iteration: int = config.ITERATION, exploration: float = config.EXPLORATION, debug: bool = False):
+        
         self.iteration = iteration
         self.exploration = exploration
         self.cpu_cores = max(1, os.cpu_count() or 1)
 
         
-        if debug and not hasattr(self, '_debug_printed'):
+        if debug:
             print(f"Using {self.cpu_cores} CPU cores for MCTS.")
             print(f"Iterations per worker: {self.iteration // self.cpu_cores}")
             print(f"Exploration factor: {self.exploration}")
             print(f"Total iterations: {self.iteration}")
-            self._debug_printed = True
+            
 
         
 

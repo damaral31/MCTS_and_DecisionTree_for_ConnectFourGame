@@ -1,6 +1,5 @@
 import os
 import sys
-import numpy as np
 import random
 import csv
 
@@ -42,11 +41,10 @@ def save_positions_as_csv(positions, filename="positions.csv"):
 
 if __name__ == "__main__":
 
-    p = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-    sys.path.append(p)
-
     from Game.ConnectFour import ConnectFour
 
+    p = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    sys.path.append(p)
 
     n = int(input("How many positions do you want to generate? "))
     while n <= 0:
@@ -56,7 +54,7 @@ if __name__ == "__main__":
 
     positions = generate_random_positions(n)
 
-    file_path = os.path.join(p, 'results', 'test.csv')
+    file_path = os.path.join(p, 'results', 'positions.csv')
     save_positions_as_csv(positions, file_path)
 
     print(f"Positions saved in {file_path}")
