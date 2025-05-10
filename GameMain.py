@@ -55,9 +55,9 @@ class ConnectFourGUI:
                 elif piece == -1:
                     color = config.YELLOW
                 pygame.draw.circle(self.screen, color, (int(c * config.SQUARESIZE + config.SQUARESIZE // 2), int((r + 1) * config.SQUARESIZE + config.SQUARESIZE // 2)), config.RADIUS)
-        # Draw the "go back" button
-        go_back_button = self.font.render("Press ESC to go back to Main Menu", True, config.WHITE)
-        self.screen.blit(go_back_button, (10, 10))
+        # Draw the "go back" text
+        go_back = self.font.render("Press ESC to go back to Main Menu", True, config.WHITE)
+        self.screen.blit(go_back, (10, 10))
         pygame.display.update()
 
     def get_player_move(self):
