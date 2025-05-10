@@ -1,18 +1,29 @@
-if __name__ == "__main__":\
-    raise Exception("This script is not meant to be run directly. Please use the Board Editor in GameMain.py.")
+if __name__ == "__main__":
+    # Prevents this script from being run directly; instructs to use GameMain.py instead
+    raise Exception("This script is not meant to be run directly. Please select Board Editor in GameMain.py.")
   
 from Game.ConnectFour import ConnectFour
 import utils.config as config
 import numpy as np
 import os
-    
-import pygame
+import contextlib
+
+# Suppress pygame.init() stdout
+with open(os.devnull, 'w') as f, contextlib.redirect_stdout(f):
+    import pygame
+    pygame.init()
+
 
 class BoardEditor:
+    """
+    A class to provide a graphical board editor for Connect Four using pygame.
+    Allows users to manually set up the board, erase pieces, and run decision tree models.
+    """
 
     def __init__(self):
+        # Initialize pygame and set up the board editor window
         pygame.init()
-        self.game = ConnectFour()
+        self.game = ConnectFour()  # Game logic instance
         self.width = config.WIDTH
         self.height = config.HEIGHT
         self.square_size = config.SQUARESIZE
@@ -22,16 +33,20 @@ class BoardEditor:
         self.dragging_piece = None  # Keeps track of the piece being dragged (1 for red, -1 for yellow)
 
     def draw_board(self):
+        """
+        Draws the Connect Four board, including the selectable pieces at the top,
+        the board grid, and the current state of the board.
+        """
         for c in range(config.COLUMN):
             for r in range(config.ROW):
+                # Draw the top row for piece selection
                 pygame.draw.rect(self.screen, config.BLACK, (c * config.SQUARESIZE, 0, config.SQUARESIZE, config.SQUARESIZE))
                 if c == 0:
                     pygame.draw.circle(self.screen, config.RED, (int(c * config.SQUARESIZE + config.SQUARESIZE // 2), int(config.SQUARESIZE // 2)), config.RADIUS)
-
                 elif c == config.COLUMN - 1:
                     pygame.draw.circle(self.screen, config.YELLOW, (int(c * config.SQUARESIZE + config.SQUARESIZE // 2), int(config.SQUARESIZE // 2)), config.RADIUS)
                 
-                
+                # Display instructions
                 text_surface = self.font.render("Press right-click on a piece to erase it", True, config.WHITE)
                 text_rect = text_surface.get_rect(center=(self.width // 2, 30))
                 text_enter = self.font.render("Press Enter to run the model", True, config.WHITE)
@@ -39,7 +54,9 @@ class BoardEditor:
 
                 self.screen.blit(text_surface, text_rect)
                 self.screen.blit(text_enter, text_rect_enter)
+                # Draw the board grid
                 pygame.draw.rect(self.screen, config.BLUE, (c * config.SQUARESIZE, (r + 1) * config.SQUARESIZE, config.SQUARESIZE, config.SQUARESIZE))
+                # Draw the pieces on the board
                 piece = self.game.board[r][c]
                 color = config.BLACK
                 if piece == 1:
@@ -50,12 +67,17 @@ class BoardEditor:
         pygame.display.update()
 
     def handle_drag_and_drop(self, debug=False):
+        """
+        Handles user interactions: dragging and dropping pieces, erasing pieces,
+        and running the model when Enter is pressed.
+        """
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 exit()
             if event.type == pygame.MOUSEBUTTONDOWN:
                 x, y = event.pos
+                # Select a piece to drag from the top row
                 if y < config.SQUARESIZE:  # Top area for selecting pieces
                     if x < config.SQUARESIZE:
                         self.dragging_piece = 1  # Red piece
@@ -68,6 +90,7 @@ class BoardEditor:
                         if 0 <= row < config.ROW and 0 <= col < config.COLUMN:
                             self.game.board[row][col] = 0
             if event.type == pygame.MOUSEBUTTONUP:
+                # Place the dragged piece on the board
                 if self.dragging_piece is not None:
                     x, y = event.pos
                     col = x // self.square_size
@@ -76,6 +99,7 @@ class BoardEditor:
                         self.game.board[row][col] = self.dragging_piece
                 self.dragging_piece = None
             if event.type == pygame.MOUSEMOTION and self.dragging_piece is not None:
+                # Show the piece being dragged with the mouse
                 self.draw_board()
                 x, y = event.pos
                 color = config.RED if self.dragging_piece == 1 else config.YELLOW
@@ -91,6 +115,10 @@ class BoardEditor:
                         print(f"Invalid board: {message}")
 
     def is_valid_board(self):
+        """
+        Checks if the current board state is valid for Connect Four.
+        Returns (True, 'Valid board') if valid, otherwise (False, reason).
+        """
         if not isinstance(self.game.board, np.ndarray):
             return False, 'Not a numpy array'
         if self.game.board.shape != (6, 7):
@@ -101,13 +129,13 @@ class BoardEditor:
         if self.game.is_over() or self.game.check_win():
             return False, 'Game is over'
 
+        # Check for floating pieces (pieces not supported from below)
         for col in range(7):
-            for row in range(5, 0, -1):  # de baixo (5) para cima (0)
+            for row in range(5, 0, -1):  # from bottom (5) to top (0)
                 if self.game.board[row][col] == 0 and self.game.board[row-1][col] != 0:
                     return False, 'Floating piece'
 
-
-        # Verificar número de peças de cada jogador
+        # Check the number of pieces for each player
         p1_count = np.sum(self.game.board == 1)
         p2_count = np.sum(self.game.board == -1)
         if abs(p1_count - p2_count) > 1:
@@ -116,6 +144,10 @@ class BoardEditor:
         return True, 'Valid board'
 
     def make_player1_move(self):
+        """
+        Ensures the board is always from player 1's perspective.
+        If player 2 has more pieces, swap the board's values.
+        """
         board = self.game.board.copy()
         p1_pices = np.sum(board == 1)
         p2_pices = np.sum(board == -1)
@@ -124,6 +156,10 @@ class BoardEditor:
         return board
 
     def run_model(self, debug=False):
+        """
+        Prompts the user to select a model, prepares the board input,
+        and runs the selected decision tree model to predict the next move.
+        """
         board = self.make_player1_move()
         if debug:
             print(f"Model input:\n {board}\n")
@@ -132,6 +168,7 @@ class BoardEditor:
         print("2. Ruleset (Tree with pruning)")
         print("3. Bagging")
 
+        # User selects which model to use
         while True:
             try:
                 choice = int(input("Enter your choice (1 / 2 / 3 / 0 to exit): "))
@@ -161,6 +198,7 @@ class BoardEditor:
             model = Bagging.load_model(file_path)
             selected = "Bagging"
 
+        # Prepare the board as a flat row for model input
         row = board.flatten()
         number_of_pieces = np.count_nonzero(row)
         row = np.append(row, number_of_pieces)
@@ -168,6 +206,7 @@ class BoardEditor:
         row = row.tolist()
         model_pred = None
 
+        # Run the selected model and print the prediction
         if choice == 1:
             for rule in rules:
                 model_pred = rule.predict(row)
@@ -178,12 +217,16 @@ class BoardEditor:
         else:
             model_pred, _ = model.predict(row)
         
-        print(f"{selected} Prediction: Column {model_pred} (0-6)")
+        
         if model_pred == -1:
             print("The model was not able to predict a column.")
+        else:
+            print(f"{selected} Prediction: Column {model_pred} (0-6)")
         
     def run_editor(self, debug=False): 
+        """
+        Main loop for the board editor. Continuously draws the board and handles user input.
+        """
         while True:
             self.draw_board()
             self.handle_drag_and_drop(debug=debug)
-
