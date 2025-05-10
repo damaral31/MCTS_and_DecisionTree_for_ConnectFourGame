@@ -1,3 +1,6 @@
+if __name__ == "__main__":\
+    raise Exception("This script is not meant to be run directly. Please use the Board Editor in GameMain.py.")
+  
 from Game.ConnectFour import ConnectFour
 import utils.config as config
 import numpy as np
@@ -121,9 +124,6 @@ class BoardEditor:
         return board
 
     def run_model(self, debug=False):
-        # Here you can implement the logic to run your model on the current board state
-        # For example, you can call a function that takes self.game.board as input and processes it
-        
         board = self.make_player1_move()
         if debug:
             print(f"Model input:\n {board}\n")
@@ -187,6 +187,3 @@ class BoardEditor:
             self.draw_board()
             self.handle_drag_and_drop(debug=debug)
 
-if __name__ == "__main__":
-    editor = BoardEditor()
-    editor.run_editor()
