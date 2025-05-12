@@ -1,10 +1,18 @@
 from Game.ConnectFour import ConnectFour
 from MCTS.MCTS_optimized import MonteCarlo
 from MCTS.node import Node
+from MCTS.MCTS import MonteCarlo_Single
 import utils.config as config
 import timeit
 from utils.Visualize_MCtree import Drawer
 from Game.DecisionTreeImputation import BoardEditor
+import contextlib
+import os
+
+# Suppress pygame.init() stdout
+with open(os.devnull, 'w') as f, contextlib.redirect_stdout(f):
+    import pygame
+    pygame.init()
 
 class ConnectFourGUI:
     """
@@ -14,7 +22,6 @@ class ConnectFourGUI:
 
     def __init__(self):
         # Initialize pygame and set up the game window and font
-        pygame.init()
         self.game = ConnectFour()
         self.width = config.WIDTH
         self.height = config.HEIGHT
@@ -152,7 +159,7 @@ class ConnectFourGUI:
         self.draw_board()
         self.end_game_message()
 
-    def run_ava(self, debug=False):
+    def run_ava(self, ai1_iter=config.ITERATION, ai2_iter=config.ITERATION, debug=False, save_path=None):
         """
         Runs an AI vs AI game loop.
         Both sides use Monte Carlo Tree Search.
@@ -162,10 +169,22 @@ class ConnectFourGUI:
                 return
             self.draw_board()
             root = Node(self.game)
-            monte_carlo = MonteCarlo(debug=debug)
+            
+            if(self.game.turn == 1):
+                monte_carlo = MonteCarlo(iteration=ai1_iter, debug=debug) if ai1_iter >= config.MEDIUMLEVEL else MonteCarlo_Single(iteration=ai1_iter, debug=debug)
+            else:
+                monte_carlo = MonteCarlo(iteration=ai2_iter, debug=debug) if ai2_iter >= config.MEDIUMLEVEL else MonteCarlo_Single(iteration=ai2_iter, debug=debug)            
             start_time = timeit.default_timer()
             best_child, scores = monte_carlo.search(root)
             end_time = timeit.default_timer()
+
+            if save_path is not None:
+                linha = [self.game.board[i][j] for i in range(config.ROW) for j in range(config.COLUMN)] + [self.game.pieces] + [self.game.turn] + [best_child]
+                linha = [str(x) for x in linha]  # Convert all elements to string to use join method
+                linha = ';'.join(linha)
+                with open(save_path, 'a') as f:
+                    f.write(linha + '\n')
+
             self.game.play(best_child)
             if debug:
                 print(scores)
@@ -173,6 +192,10 @@ class ConnectFourGUI:
                 drawer = Drawer()
                 G = drawer.build_tree_graph(root, depth=2, max_nodes=100)
                 drawer.draw_tree(G)
+
+        if save_path is not None:
+            return
+        
         self.draw_board()
         self.end_game_message()
 
@@ -206,6 +229,95 @@ class ConnectFourGUI:
                         self.run_pva(config.MEDIUMLEVEL, debug)
                     elif self.width // 2 - hacker_button.get_width() // 2 < x < self.width // 2 + hacker_button.get_width() // 2 and self.height // 2 + 90 < y < self.height // 2 + 120:
                         self.run_pva(config.HARDLEVEL, debug)
+
+    def ava_menu(self, debug=False):
+        """
+        Displays a menu to set the number of iterations for each AI in AI vs AI mode.
+        """
+        input_active1 = False
+        input_active2 = False
+        input_text1 = ""
+        input_text2 = ""
+        error_message = ""
+        ai1_rect = pygame.Rect(self.width // 2 - 100, self.height // 2 - 40, 200, 50)
+        ai2_rect = pygame.Rect(self.width // 2 - 100, self.height // 2 + 40, 200, 50)
+        start_button = self.font.render("Start", True, config.WHITE)
+        start_rect = pygame.Rect(self.width // 2 - 60, self.height // 2 + 120, 120, 50)
+
+        while True:
+            self.screen.fill(config.BLACK)
+            title = self.font.render("Set Iterations for Each AI", True, config.WHITE)
+            ai1_label = self.font.render("AI 1 Iterations:", True, config.WHITE)
+            ai2_label = self.font.render("AI 2 Iterations:", True, config.WHITE)
+            pygame.draw.rect(self.screen, config.WHITE, ai1_rect, 2)
+            pygame.draw.rect(self.screen, config.WHITE, ai2_rect, 2)
+
+            self.screen.blit(title, (self.width // 2 - title.get_width() // 2, self.height // 2 - 120))
+            self.screen.blit(ai1_label, (ai1_rect.x - 220, ai1_rect.y + 10))
+            self.screen.blit(ai2_label, (ai2_rect.x - 220, ai2_rect.y + 10))
+
+            ai1_surface = self.font.render(input_text1, True, config.WHITE)
+            ai2_surface = self.font.render(input_text2, True, config.WHITE)
+            self.screen.blit(ai1_surface, (ai1_rect.x + 10, ai1_rect.y + 10))
+            self.screen.blit(ai2_surface, (ai2_rect.x + 10, ai2_rect.y + 10))
+            pygame.draw.rect(self.screen, config.WHITE, start_rect, 2)
+            self.screen.blit(start_button, (start_rect.x + 10, start_rect.y + 5))
+            if input_active1:
+                pygame.draw.rect(self.screen, config.RED, ai1_rect, 2)
+            if input_active2:
+                pygame.draw.rect(self.screen, config.YELLOW, ai2_rect, 2)
+
+
+            if error_message:
+                error_surface = self.font.render(error_message, True, config.RED)
+                self.screen.blit(error_surface, (self.width // 2 - error_surface.get_width() // 2, self.height // 2 + 180))
+            pygame.display.update()
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    exit()
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                    return
+                if event.type == pygame.KEYDOWN:
+                    if input_active1:
+                        if event.key == pygame.K_RETURN:
+                            input_active1 = False
+                        elif event.key == pygame.K_BACKSPACE:
+                            input_text1 = input_text1[:-1]
+                        elif event.unicode.isdigit():
+                            input_text1 += event.unicode
+                    elif input_active2:
+                        if event.key == pygame.K_RETURN:
+                            input_active2 = False
+                        elif event.key == pygame.K_BACKSPACE:
+                            input_text2 = input_text2[:-1]
+                        elif event.unicode.isdigit():
+                            input_text2 += event.unicode
+                    elif event.key == pygame.K_ESCAPE:
+                        return
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    if ai1_rect.collidepoint(event.pos):
+                        input_active1 = True
+                        input_active2 = False
+                    elif ai2_rect.collidepoint(event.pos):
+                        input_active1 = False
+                        input_active2 = True
+
+                    elif start_rect.collidepoint(event.pos):
+                        try:
+                            iter1 = int(input_text1)
+                            iter2 = int(input_text2)
+                            if iter1 < 0 or iter2 < 0:
+                                error_message = "Iterations must be positive numbers."
+                                continue
+                            if debug:
+                                print(f"AI 1 Iterations: {iter1}, AI 2 Iterations: {iter2}")
+                            self.run_ava(iter1, iter2, debug)
+                            return
+                        except ValueError:
+                            error_message = "Please enter valid numbers."
+
 
     def mainMenu(self):
         """
@@ -250,7 +362,7 @@ class ConnectFourGUI:
                     elif self.width // 2 - pva_button.get_width() // 2 < x < self.width // 2 + pva_button.get_width() // 2 and self.height // 2 - 50 < y < self.height // 2 - 10:
                         self.pva_menu(debug)
                     elif self.width // 2 - ava_button.get_width() // 2 < x < self.width // 2 + ava_button.get_width() // 2 and self.height // 2 + 10 < y < self.height // 2 + 50:
-                        self.run_ava(debug)
+                        self.ava_menu(debug)
                     elif self.width // 2 - editor_text.get_width() // 2 < x < self.width // 2 + editor_text.get_width() // 2 and self.height // 2 + 70 < y < self.height // 2 + 110:
                         editor = BoardEditor()
                         editor.run_editor(debug)
@@ -259,6 +371,5 @@ class ConnectFourGUI:
                         exit()
 
 if __name__ == "__main__":
-    import pygame
     gui = ConnectFourGUI()
     gui.mainMenu()

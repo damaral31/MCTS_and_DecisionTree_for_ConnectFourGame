@@ -4,6 +4,7 @@ if __name__ == "__main__":
 from collections import defaultdict
 from .Ruleset import Ruleset
 import pickle
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
 class Bagging:
     def __init__(self, attributes, data, default, type_map):
@@ -49,6 +50,37 @@ class Bagging:
         # Determine the prediction with the highest vote sum.
         winner = max(votes.items(), key=lambda x: x[1])
         return winner[0], winner[1] / len(self.classifiers)  # Return the prediction and average confidence.
+
+    def get_train_metrics(self):
+        """
+        Calculates and returns the training metrics for each classifier.
+        
+        :return: List of dictionaries containing accuracy, precision, recall, and F1 score for each classifier.
+        """
+        metrics = []
+        for clf in self.classifiers:
+            y_true = [row[-1] for row in self.data]
+            y_pred = [clf.predict(row)[0] for row in self.data]
+            accuracy = accuracy_score(y_true, y_pred)
+            precision = precision_score(y_true, y_pred, average='weighted', zero_division=0)
+            recall = recall_score(y_true, y_pred, average='weighted', zero_division=0)
+            f1 = f1_score(y_true, y_pred, average='weighted', zero_division=0)
+            metrics.append({
+                'accuracy': accuracy,
+                'precision': precision,
+                'recall': recall,
+                'f1_score': f1
+            })
+
+        mean_metrics = {
+            'accuracy': sum(m['accuracy'] for m in metrics) / len(metrics),
+            'precision': sum(m['precision'] for m in metrics) / len(metrics),
+            'recall': sum(m['recall'] for m in metrics) / len(metrics),
+            'f1_score': sum(m['f1_score'] for m in metrics) / len(metrics)
+        }
+        
+        return mean_metrics  # Return the average metrics across all classifiers.
+    
 
     def save_model(self, file_path):
         """

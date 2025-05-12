@@ -32,7 +32,7 @@ class ConnectFour(object):
         self.win = 0
         self.board = np.zeros((config.ROW, config.COLUMN), dtype=np.int8)
         self.last_move = []
-
+        self.pieces = 0
 
     def reset_game(self) -> None:
         """
@@ -60,6 +60,7 @@ class ConnectFour(object):
         new_game.win = self.win
         new_game.board = self.board.copy()
         new_game.last_move = self.last_move[:]
+        new_game.pieces = self.pieces
         return new_game
 
     def check_win(self) -> int:
@@ -146,6 +147,7 @@ class ConnectFour(object):
                 break
         self.turn *= -1
         self.win = self.check_win()
+        self.pieces += 1
         return self.win
 
     def is_over(self) -> bool:
@@ -167,4 +169,3 @@ class ConnectFour(object):
         none
         """
         print(self.board)
-

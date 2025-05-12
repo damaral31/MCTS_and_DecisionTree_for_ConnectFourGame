@@ -8,7 +8,7 @@ from Game.ConnectFour import ConnectFour
 from MCTS.node import Node
 
 
-class MonteCarlo(object):
+class MonteCarlo_Single(object):
     """
     Monte Carlo Tree Search algorithm.
 

@@ -6,6 +6,7 @@ from collections import Counter
 from .Rule import Rule  
 from .Node import Node  
 import pickle  
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
 class ID3Tree:
     def __init__(self, attributes, data, default, type_map):
@@ -149,6 +150,39 @@ class ID3Tree:
                     # Create a rule for a leaf node
                     rules.append(Rule(self.attributes, new_premise, subtree))
         return rules
+    
+    def get_train_metrics(self):
+        """
+        Get training metrics such as accuracy, precision, recall, and F1 score on the training data.
+        """
+
+        def predict_single(row):
+            node = self.tree
+            while isinstance(node, dict):
+                n = next(iter(node))
+                branches = node[n]
+                attr_idx = self.attributes.index(n.attribute)
+                if n.threshold is not None:
+                    if row[attr_idx] >= n.threshold:
+                        node = branches['>=']
+                    else:
+                        node = branches['<']
+                else:
+                    val = row[attr_idx]
+                    node = branches.get(val, self.default)
+            return node
+
+        y_true = [row[-1] for row in self.data]
+        y_pred = [predict_single(row) for row in self.data]
+
+        metrics = {
+            'accuracy': accuracy_score(y_true, y_pred),
+            'precision': precision_score(y_true, y_pred, average='weighted', zero_division=0),
+            'recall': recall_score(y_true, y_pred, average='weighted', zero_division=0),
+            'f1_score': f1_score(y_true, y_pred, average='weighted', zero_division=0)
+        }
+        return metrics
+    
 
     def save_model(self, file_path):
         """

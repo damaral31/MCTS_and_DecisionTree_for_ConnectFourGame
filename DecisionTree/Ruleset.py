@@ -4,6 +4,7 @@ if __name__ == "__main__":
 import random
 from .ID3Tree import ID3Tree
 import pickle
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
 class Ruleset:
     def __init__(self, attributes, data, default, type_map):
@@ -58,6 +59,26 @@ class Ruleset:
                 return prediction, rule.accuracy()
         return self.default, 0.0  # Return default if no rule matches
     
+
+    def get_train_metrics(self):
+        """
+        Calculate and return the training metrics for the ruleset.
+        Returns a dictionary with accuracy, precision, recall, and F1 score.
+        """
+        y_true = [row[-1] for row in self.train_data]
+        y_pred = [self.predict(row)[0] for row in self.train_data]
+        accuracy = accuracy_score(y_true, y_pred)
+        precision = precision_score(y_true, y_pred, average='weighted', zero_division=0)
+        recall = recall_score(y_true, y_pred, average='weighted', zero_division=0)
+        f1 = f1_score(y_true, y_pred, average='weighted', zero_division=0)
+        
+        return {
+            'accuracy': accuracy,
+            'precision': precision,
+            'recall': recall,
+            'f1_score': f1
+        }
+
     def save_model(self, file_path):
         """
         Save the trained ruleset model to a file using pickle serialization.
