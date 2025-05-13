@@ -62,7 +62,7 @@ class ID3Tree:
 
         # Calculate fitness scores for all attributes
         scores = [(self.fitness_for(attr)(data, attr), attr) for attr in attributes]
-        best_gain, best_attr = max(scores)  # Select the attribute with the highest gain
+        best_gain, best_attr = max(scores, key=lambda x: x[0][0] if isinstance(x[0], tuple) else x[0])
 
         if self.type_map[best_attr] == 'continuous':
             # Handle continuous attributes
