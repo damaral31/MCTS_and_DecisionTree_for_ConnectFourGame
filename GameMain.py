@@ -174,6 +174,7 @@ class ConnectFourGUI:
                 monte_carlo = MonteCarlo(iteration=ai1_iter, debug=debug) if ai1_iter >= config.MEDIUMLEVEL else MonteCarlo_Single(iteration=ai1_iter, debug=debug)
             else:
                 monte_carlo = MonteCarlo(iteration=ai2_iter, debug=debug) if ai2_iter >= config.MEDIUMLEVEL else MonteCarlo_Single(iteration=ai2_iter, debug=debug)            
+            
             start_time = timeit.default_timer()
             best_child, scores = monte_carlo.search(root)
             end_time = timeit.default_timer()

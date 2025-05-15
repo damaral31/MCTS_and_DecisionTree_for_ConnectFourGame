@@ -94,9 +94,10 @@ class MonteCarlo:
         self.iteration = iteration
         self.exploration = exploration
         self.cpu_cores = max(1, os.cpu_count() or 1)
+        self.debug = debug
 
         
-        if debug:
+        if self.debug:
             print(f"Using {self.cpu_cores} CPU cores for MCTS.")
             print(f"Iterations per worker: {self.iteration // self.cpu_cores}")
             print(f"Exploration factor: {self.exploration}")
