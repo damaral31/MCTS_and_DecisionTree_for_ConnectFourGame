@@ -145,7 +145,7 @@ class ConnectFourGUI:
             else:
                 # AI's turn
                 root = Node(self.game)
-                monte_carlo = MonteCarlo(iteration=iterations, debug=debug)
+                monte_carlo = MonteCarlo(iteration=iterations, debug=debug) if iterations >= config.MEDIUMLEVEL else MonteCarlo_Single(iteration=iterations, debug=debug)
                 start_time = timeit.default_timer()
                 best_child, scores = monte_carlo.search(root)
                 end_time = timeit.default_timer()

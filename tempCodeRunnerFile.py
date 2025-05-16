@@ -1,1 +1,0 @@
-start_time = timeit.default_timer()

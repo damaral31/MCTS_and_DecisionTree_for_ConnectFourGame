@@ -81,6 +81,33 @@ class Bagging:
         
         return mean_metrics  # Return the average metrics across all classifiers.
     
+    def feature_importance(self, normalize=True):
+        """
+        Calcula a importância média das features com base nas importâncias das regras dos classificadores.
+        
+        :param normalize: Se True, normaliza os valores para somarem 1.
+        :return: Dicionário com a importância média das features.
+        """
+        if not self.classifiers:
+            raise ValueError("Os classificadores ainda não foram treinados.")
+
+        aggregated = {attr: 0.0 for attr in self.attributes}
+
+        for clf in self.classifiers:
+            clf_importance = clf.feature_importance(normalize=False)
+            for attr, score in clf_importance.items():
+                aggregated[attr] += score
+
+        # Tirar média
+        num_classifiers = len(self.classifiers)
+        importance = {attr: score / num_classifiers for attr, score in aggregated.items()}
+
+        if normalize:
+            total = sum(importance.values())
+            if total > 0:
+                importance = {k: v / total for k, v in importance.items()}
+
+        return importance
 
     def save_model(self, file_path):
         """
