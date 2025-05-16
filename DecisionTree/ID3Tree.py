@@ -49,6 +49,8 @@ class ID3Tree:
             return self.id3_discrete
         return self.id3_continuous
 
+    # ... tudo antes permanece igual ...
+
     def id3_train(self, data, attributes):
         """
         Recursively build the decision tree using the ID3 algorithm.
@@ -56,18 +58,18 @@ class ID3Tree:
         - attributes: List of attributes to consider.
         """
         if not data:
-            return self.default  # Return default if no data is available
+            return self.default
         if len(set(row[-1] for row in data)) == 1:
-            return data[0][-1]  # Return the label if all data has the same label
+            return data[0][-1]
 
-        # Calculate fitness scores for all attributes
         scores = [(self.fitness_for(attr)(data, attr), attr) for attr in attributes]
         best_gain, best_attr = max(scores, key=lambda x: x[0][0] if isinstance(x[0], tuple) else x[0])
 
+        n_samples = len(data)
+
         if self.type_map[best_attr] == 'continuous':
-            # Handle continuous attributes
             threshold = best_gain[1]
-            node = Node(best_attr, threshold, best_gain[0])  # Create a node with a threshold
+            node = Node(best_attr, threshold, best_gain[0], n_samples=n_samples)  
             above = [row for row in data if row[self.attributes.index(best_attr)] >= threshold]
             below = [row for row in data if row[self.attributes.index(best_attr)] < threshold]
             return {node: {
@@ -75,14 +77,18 @@ class ID3Tree:
                 '<': self.id3_train(below, attributes)
             }}
         else:
-            # Handle discrete attributes
             index = self.attributes.index(best_attr)
             values = set(row[index] for row in data)
-            node = Node(best_attr, None, best_gain[0])  # Create a node without a threshold
+            node = Node(best_attr, None, best_gain[0], n_samples=n_samples)
             return {node: {
-                val: self.id3_train([row for row in data if row[index] == val], [a for a in attributes if a != best_attr])
-                for val in values
+                val: self.id3_train(
+                    [row for row in data if row[index] == val],
+                    [a for a in attributes if a != best_attr]
+                ) for val in values
             }}
+
+# ... o restante do código permanece igual ...
+
 
     def id3_continuous(self, data, attribute):
         """
@@ -202,3 +208,39 @@ class ID3Tree:
         with open(file_path, 'rb') as f:
             model = pickle.load(f)
         return model
+    
+
+    def feature_importance(self):
+        """
+        Calcula a importância das features com base no ganho de informação
+        ponderado pelo número de amostras que passam por cada nó.
+        """
+        if self.tree is None:
+            raise ValueError("O modelo ainda não foi treinado.")
+
+        importance = {attr: 0 for attr in self.attributes}
+        total_samples = len(self.data)
+
+        def traverse(node):
+            if not isinstance(node, dict):
+                return
+
+            for n, branches in node.items():
+                if n.attribute not in importance:
+                    continue  # Precaução extra
+
+                # Incrementa importância usando ganho ponderado
+                importance[n.attribute] += (n.gain or 0) * (n.n_samples / total_samples)
+
+                for child in branches.values():
+                    traverse(child)
+
+        traverse(self.tree)
+
+        # Normaliza para somar 1
+        total = sum(importance.values())
+        if total > 0:
+            importance = {k: v / total for k, v in importance.items()}
+
+        return importance
+

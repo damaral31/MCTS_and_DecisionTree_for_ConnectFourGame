@@ -59,6 +59,28 @@ class Ruleset:
                 return prediction, rule.accuracy()
         return self.default, 0.0  # Return default if no rule matches
     
+    def feature_importance(self, normalize=True):
+        """
+        Calcula a importância das features com base nas premissas das regras geradas.
+        A importância é ponderada pela acurácia da regra.
+        """
+        if not self.rules:
+            raise ValueError("O modelo ainda não foi treinado.")
+
+        importance = {attr: 0.0 for attr in self.attributes}
+
+        for rule in self.rules:
+            acc = rule.accuracy(self.train_data)
+            used_attrs = [premise[0] for premise in rule.premises]
+            for attr in used_attrs:
+                importance[attr] += acc  # Pondera pela acurácia da regra
+
+        if normalize:
+            total = sum(importance.values())
+            if total > 0:
+                importance = {k: v / total for k, v in importance.items()}
+
+        return importance
 
     def get_train_metrics(self):
         """
