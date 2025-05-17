@@ -36,9 +36,14 @@ class ID3Tree:
         """
         Train the decision tree using the ID3 algorithm.
         """
-                
+            
         self.tree = self.id3_train(self.data, self.attributes)
-        
+
+    def majority_class(self, data):
+        from collections import Counter
+        labels = [row[-1] for row in data]
+        return Counter(labels).most_common(1)[0][0]
+   
 
     def fitness_for(self, attribute):
         """
@@ -49,7 +54,6 @@ class ID3Tree:
             return self.id3_discrete
         return self.id3_continuous
 
-    # ... tudo antes permanece igual ...
 
     def id3_train(self, data, attributes):
         """
@@ -69,7 +73,10 @@ class ID3Tree:
 
         if self.type_map[best_attr] == 'continuous':
             threshold = best_gain[1]
-            node = Node(best_attr, threshold, best_gain[0], n_samples=n_samples)  
+            if threshold is None:
+                # Fallback: retorna o valor majoritário da classe
+                return self.majority_class(data)
+            node = Node(best_attr, threshold, best_gain[0], n_samples=n_samples)
             above = [row for row in data if row[self.attributes.index(best_attr)] >= threshold]
             below = [row for row in data if row[self.attributes.index(best_attr)] < threshold]
             return {node: {
@@ -86,8 +93,6 @@ class ID3Tree:
                     [a for a in attributes if a != best_attr]
                 ) for val in values
             }}
-
-# ... o restante do código permanece igual ...
 
 
     def id3_continuous(self, data, attribute):

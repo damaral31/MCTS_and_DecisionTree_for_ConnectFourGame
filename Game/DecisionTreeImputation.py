@@ -183,24 +183,37 @@ class BoardEditor:
         selected = ""
         if choice == 1:
             from DecisionTree.ID3Tree import ID3Tree
-            file_path = os.path.join(os.getcwd(), "models", "id3_tree.pkl")
+            file_path = os.path.join(os.getcwd(), "models", "id3_analize.pkl")
             model = ID3Tree.load_model(file_path)
             rules = model.build_rules()
             selected = "ID3 Tree"
         elif choice == 2:
             from DecisionTree.Ruleset import Ruleset
-            file_path = os.path.join(os.getcwd(), "models", "ruleset.pkl")
+            file_path = os.path.join(os.getcwd(), "models", "ruleset_analize.pkl")
             model = Ruleset.load_model(file_path)
             selected = "Ruleset"
         elif choice == 3:
             from DecisionTree.Bootstrap_Aggregating import Bagging
-            file_path = os.path.join(os.getcwd(), "models", "bagging_model.pkl")
+            file_path = os.path.join(os.getcwd(), "models", "bagging_analize.pkl")
             model = Bagging.load_model(file_path)
             selected = "Bagging"
 
         # Prepare the board as a flat row for model input
         row = board.flatten()
         number_of_pieces = np.count_nonzero(row)
+
+        player_1 = np.copy(row)
+        # Replace -1 with 0
+        player_1[player_1 == -1] = 0
+        player_2 = np.copy(row)
+        player_2[player_2 == 1] = 0
+        player_2[player_2 == -1] = 1
+
+        row = np.append(player_1, player_2)
+
+
+
+        
         row = np.append(row, number_of_pieces)
         row = np.append(row, 0)
         row = row.tolist()
@@ -220,6 +233,7 @@ class BoardEditor:
         
         if model_pred == -1:
             print("The model was not able to predict a column.")
+            print("Please check a more robust model, such as Ruleset or Bagging.")
         else:
             print(f"{selected} Prediction: Column {model_pred} (0-6)")
         

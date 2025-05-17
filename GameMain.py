@@ -8,6 +8,11 @@ from utils.Visualize_MCtree import Drawer
 from Game.DecisionTreeImputation import BoardEditor
 import contextlib
 import os
+import random
+import numpy as np
+from DecisionTree.ID3Tree import ID3Tree
+from DecisionTree.Ruleset import Ruleset
+from DecisionTree.Bootstrap_Aggregating import Bagging
 
 # Suppress pygame.init() stdout
 with open(os.devnull, 'w') as f, contextlib.redirect_stdout(f):
@@ -159,6 +164,153 @@ class ConnectFourGUI:
         self.draw_board()
         self.end_game_message()
 
+    def run_pvd(self, model, rules=None):
+        """
+        Runs a Player vs Decision Tree game loop.
+        The Decision Tree uses a pre-trained model to make its moves.
+        """
+        while not self.game.is_over():
+            if self.check_escape():
+                return
+            self.draw_board()
+            if self.game.turn == 1:
+                # Player's turn
+                player_move = self.get_player_move()
+                if player_move is None:
+                    return
+                self.game.play(player_move)
+            else:
+                row = self.game.board.flatten()
+                number_of_pieces = np.count_nonzero(row)
+
+                player_1 = np.copy(row)
+                # Replace -1 with 0
+                player_1[player_1 == -1] = 0
+                player_2 = np.copy(row)
+                player_2[player_2 == 1] = 0
+                player_2[player_2 == -1] = 1
+
+                row = np.append(player_1, player_2)
+
+                row = np.append(row, number_of_pieces)
+                row = np.append(row, 0)
+                row = row.tolist()
+                model_pred = None
+
+                # Run the selected model and print the prediction
+                if rules is not None:
+                    for rule in rules:
+                        model_pred = rule.predict(row)
+                        if model_pred is not None:
+                            break
+                    if model_pred is None:
+                        model_pred = -1  # ERROR_CLASS
+                else:
+                    model_pred, _ = model.predict(row)
+                
+                legal_moves = self.game.legal_moves()
+                if model_pred not in legal_moves:
+                    model_pred = random.choice(self.game.legal_moves())
+                self.game.play(model_pred)
+        self.draw_board()
+        self.end_game_message()
+
+    def ai_or_dt_menu(self, debug=False):
+        """
+        Displays a menu to choose between playing against Monte Carlo Tree Search (AI) or a Decision Tree.
+        """
+        self.screen.fill(config.BLACK)
+        title = self.font.render("Choose Opponent", True, config.WHITE)
+        ai_button = self.font.render("Play vs Monte Carlo AI", True, config.WHITE)
+        dt_button = self.font.render("Play vs Decision Tree", True, config.WHITE)
+        back_button = self.font.render("Back", True, config.WHITE)
+
+        ai_rect = pygame.Rect(self.width // 2 - 200, self.height // 2 - 40, 400, 60)
+        dt_rect = pygame.Rect(self.width // 2 - 200, self.height // 2 + 40, 400, 60)
+        back_rect = pygame.Rect(self.width // 2 - 60, self.height // 2 + 140, 120, 50)
+
+        while True:
+            self.screen.fill(config.BLACK)
+            self.screen.blit(title, (self.width // 2 - title.get_width() // 2, self.height // 2 - 120))
+            pygame.draw.rect(self.screen, config.WHITE, ai_rect, 2)
+            pygame.draw.rect(self.screen, config.WHITE, dt_rect, 2)
+            pygame.draw.rect(self.screen, config.WHITE, back_rect, 2)
+            self.screen.blit(ai_button, (ai_rect.x + 20, ai_rect.y + 10))
+            self.screen.blit(dt_button, (dt_rect.x + 20, dt_rect.y + 10))
+            self.screen.blit(back_button, (back_rect.x + 10, back_rect.y + 5))
+            pygame.display.update()
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    exit()
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                    return
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    x, y = event.pos
+                    if ai_rect.collidepoint(x, y):
+                        self.pva_menu(debug)
+                        return
+                    elif dt_rect.collidepoint(x, y):
+                        self.pvd_menu(debug)
+                        return
+                    elif back_rect.collidepoint(x, y):
+                        return
+
+    def pvd_menu(self, debug=False):
+        """
+        Displays a menu to choose which Decision Tree model to play against.
+        """
+
+        self.screen.fill(config.BLACK)
+        title = self.font.render("Choose Decision Tree Model", True, config.WHITE)
+        id3_button = self.font.render("Play vs ID3", True, config.WHITE)
+        ruleset_button = self.font.render("Play vs Ruleset", True, config.WHITE)
+        bagging_button = self.font.render("Play vs Bagging", True, config.WHITE)
+        back_button = self.font.render("Back", True, config.WHITE)
+
+        id3_rect = pygame.Rect(self.width // 2 - 200, self.height // 2 - 60, 400, 60)
+        ruleset_rect = pygame.Rect(self.width // 2 - 200, self.height // 2 + 20, 400, 60)
+        bagging_rect = pygame.Rect(self.width // 2 - 200, self.height // 2 + 100, 400, 60)
+        back_rect = pygame.Rect(self.width // 2 - 60, self.height // 2 + 200, 120, 50)
+
+        while True:
+            self.screen.fill(config.BLACK)
+            self.screen.blit(title, (self.width // 2 - title.get_width() // 2, self.height // 2 - 140))
+            pygame.draw.rect(self.screen, config.WHITE, id3_rect, 2)
+            pygame.draw.rect(self.screen, config.WHITE, ruleset_rect, 2)
+            pygame.draw.rect(self.screen, config.WHITE, bagging_rect, 2)
+            pygame.draw.rect(self.screen, config.WHITE, back_rect, 2)
+            self.screen.blit(id3_button, (id3_rect.x + 20, id3_rect.y + 10))
+            self.screen.blit(ruleset_button, (ruleset_rect.x + 20, ruleset_rect.y + 10))
+            self.screen.blit(bagging_button, (bagging_rect.x + 20, bagging_rect.y + 10))
+            self.screen.blit(back_button, (back_rect.x + 10, back_rect.y + 5))
+            pygame.display.update()
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    exit()
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                    return
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    x, y = event.pos
+                    if id3_rect.collidepoint(x, y):
+                        model = ID3Tree.load_model(os.path.join("models", "id3_analize.pkl"))
+                        rules = model.build_rules()
+                        self.run_pvd(model, rules=rules)
+                        return
+                    elif ruleset_rect.collidepoint(x, y):
+                        model = Ruleset.load_model(os.path.join("models", "ruleset_analize.pkl"))
+                        self.run_pvd(model)
+                        return
+                    elif bagging_rect.collidepoint(x, y):
+                        model = Bagging.load_model(os.path.join("models", "bagging_analize.pkl"))
+                        self.run_pvd(model)
+                        return
+                    elif back_rect.collidepoint(x, y):
+                        return
+        
     def run_ava(self, ai1_iter=config.ITERATION, ai2_iter=config.ITERATION, debug=False, save_path=None):
         """
         Runs an AI vs AI game loop.
@@ -186,7 +338,6 @@ class ConnectFourGUI:
                 with open(save_path, 'a') as f:
                     f.write(linha + '\n')
 
-            self.game.play(best_child)
             if debug:
                 print(scores)
                 print(f"AI {self.game.turn} took {end_time - start_time:.2f} seconds to decide.")
@@ -194,6 +345,7 @@ class ConnectFourGUI:
                 G = drawer.build_tree_graph(root, depth=2, max_nodes=100)
                 drawer.draw_tree(G)
 
+            self.game.play(best_child)
         if save_path is not None:
             return
         
@@ -230,6 +382,332 @@ class ConnectFourGUI:
                         self.run_pva(config.MEDIUMLEVEL, debug)
                     elif self.width // 2 - hacker_button.get_width() // 2 < x < self.width // 2 + hacker_button.get_width() // 2 and self.height // 2 + 90 < y < self.height // 2 + 120:
                         self.run_pva(config.HARDLEVEL, debug)
+
+    def models_menu(self, debug=False):
+        """
+        Displays a menu to choose AI vs AI, AI vs Decision Tree, or Decision Tree vs Decision Tree.
+        """
+        self.screen.fill(config.BLACK)
+        title = self.font.render("Choose AI Matchup", True, config.WHITE)
+        ava_button = self.font.render("Monte Carlo vs Monte Carlo", True, config.WHITE)
+        avdt_button = self.font.render("Monte Carlo vs Decision Tree", True, config.WHITE)
+        dtdt_button = self.font.render("Decision Tree vs Decision Tree", True, config.WHITE)
+        back_button = self.font.render("Back", True, config.WHITE)
+
+        ava_rect = pygame.Rect(self.width // 2 - 220, self.height // 2 - 60, 440, 60)
+        avdt_rect = pygame.Rect(self.width // 2 - 220, self.height // 2 + 20, 440, 60)
+        dtdt_rect = pygame.Rect(self.width // 2 - 220, self.height // 2 + 100, 440, 60)
+        back_rect = pygame.Rect(self.width // 2 - 60, self.height // 2 + 200, 120, 50)
+
+        while True:
+            self.screen.fill(config.BLACK)
+            self.screen.blit(title, (self.width // 2 - title.get_width() // 2, self.height // 2 - 140))
+            pygame.draw.rect(self.screen, config.WHITE, ava_rect, 2)
+            pygame.draw.rect(self.screen, config.WHITE, avdt_rect, 2)
+            pygame.draw.rect(self.screen, config.WHITE, dtdt_rect, 2)
+            pygame.draw.rect(self.screen, config.WHITE, back_rect, 2)
+            self.screen.blit(ava_button, (ava_rect.x + 20, ava_rect.y + 10))
+            self.screen.blit(avdt_button, (avdt_rect.x + 20, avdt_rect.y + 10))
+            self.screen.blit(dtdt_button, (dtdt_rect.x + 20, dtdt_rect.y + 10))
+            self.screen.blit(back_button, (back_rect.x + 10, back_rect.y + 5))
+            pygame.display.update()
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    exit()
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                    return
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    x, y = event.pos
+                    if ava_rect.collidepoint(x, y):
+                        self.ava_menu(debug)
+                        return
+                    elif avdt_rect.collidepoint(x, y):
+                        # Monte Carlo vs Decision Tree
+                        # Ask user to select DT model for right side
+                        self.avdt_menu(debug)
+                        return
+                    elif dtdt_rect.collidepoint(x, y):
+                        # Decision Tree vs Decision Tree
+                        self.dtdt_menu(debug)
+                        return
+                    elif back_rect.collidepoint(x, y):
+                        return
+
+    def avdt_menu(self, debug=False):
+        """
+        Menu for selecting Monte Carlo iterations and Decision Tree model for Monte Carlo vs Decision Tree.
+        """
+        self.screen.fill(config.BLACK)
+        title = self.font.render("Monte Carlo vs Decision Tree", True, config.WHITE)
+
+        # Monte Carlo iterations input
+        mc_label = self.font.render("Monte Carlo Iterations:", True, config.WHITE)
+        mc_input_rect = pygame.Rect(self.width // 2 + 100, self.height // 2 - 40, 200, 50)
+        mc_input_active = False
+        mc_input_text = str(config.ITERATION)
+
+        # Decision Tree model selection
+        dt_label = self.font.render("Decision Tree Model:", True, config.WHITE)
+        dt_types = ["ID3", "Ruleset", "Bagging"]
+        dt_idx = 0
+        dt_rect = pygame.Rect(self.width // 2 + 100, self.height // 2 + 40, 200, 50)
+
+        # Buttons
+        start_button = self.font.render("Start", True, config.WHITE)
+        start_rect = pygame.Rect(self.width // 2 - 60, self.height // 2 + 120, 120, 50)
+        back_button = self.font.render("Back", True, config.WHITE)
+        back_rect = pygame.Rect(self.width // 2 - 60, self.height // 2 + 190, 120, 50)
+
+        error_message = ""
+
+        while True:
+            self.screen.fill(config.BLACK)
+            self.screen.blit(title, (self.width // 2 - title.get_width() // 2, self.height // 2 - 120))
+
+            # Monte Carlo input
+            self.screen.blit(mc_label, (mc_input_rect.x - 370, mc_input_rect.y))
+            pygame.draw.rect(self.screen, config.WHITE, mc_input_rect, 2)
+            mc_input_surface = self.font.render(mc_input_text, True, config.WHITE)
+            self.screen.blit(mc_input_surface, (mc_input_rect.x + 10, mc_input_rect.y + 10))
+            if mc_input_active:
+                pygame.draw.rect(self.screen, config.RED, mc_input_rect, 2)
+
+            # Decision Tree selection
+            self.screen.blit(dt_label, (dt_rect.x - 370, dt_rect.y))
+            pygame.draw.rect(self.screen, config.WHITE, dt_rect, 2)
+            dt_surface = self.font.render(dt_types[dt_idx], True, config.WHITE)
+            self.screen.blit(dt_surface, (dt_rect.x + 10, dt_rect.y + 10))
+
+            # Buttons
+            pygame.draw.rect(self.screen, config.WHITE, start_rect, 2)
+            self.screen.blit(start_button, (start_rect.x + 10, start_rect.y + 5))
+            pygame.draw.rect(self.screen, config.WHITE, back_rect, 2)
+            self.screen.blit(back_button, (back_rect.x + 10, back_rect.y + 5))
+
+            if error_message:
+                error_surface = self.font.render(error_message, True, config.RED)
+                self.screen.blit(error_surface, (self.width // 2 - error_surface.get_width() // 2, self.height // 2 + 170))
+
+            pygame.display.update()
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    exit()
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                    return
+                if event.type == pygame.KEYDOWN:
+                    if mc_input_active:
+                        if event.key == pygame.K_RETURN:
+                            mc_input_active = False
+                        elif event.key == pygame.K_BACKSPACE:
+                            mc_input_text = mc_input_text[:-1]
+                        elif event.unicode.isdigit():
+                            mc_input_text += event.unicode
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    x, y = event.pos
+                    if mc_input_rect.collidepoint(x, y):
+                        mc_input_active = True
+                    else:
+                        mc_input_active = False
+                    if dt_rect.collidepoint(x, y):
+                        dt_idx = (dt_idx + 1) % len(dt_types)
+                    elif start_rect.collidepoint(x, y):
+                        try:
+                            mc_iter = int(mc_input_text)
+                            if mc_iter < 1:
+                                error_message = "Iterations must be positive."
+                                continue
+                        except ValueError:
+                            error_message = "Enter a valid number."
+                            continue
+                        # Load selected DT model
+                        if dt_types[dt_idx] == "ID3":
+                            model = ID3Tree.load_model(os.path.join("models", "id3_analize.pkl"))
+                            rules = model.build_rules()
+                            self.run_avdt(model, rules=rules, debug=debug, ai1_iter=mc_iter)
+                        elif dt_types[dt_idx] == "Ruleset":
+                            model = Ruleset.load_model(os.path.join("models", "ruleset_analize.pkl"))
+                            self.run_avdt(model, debug=debug, ai1_iter=mc_iter)
+                        elif dt_types[dt_idx] == "Bagging":
+                            model = Bagging.load_model(os.path.join("models", "bagging_analize.pkl"))
+                            self.run_avdt(model, debug=debug, ai1_iter=mc_iter)
+                        return
+                    elif back_rect.collidepoint(x, y):
+                        return
+
+    def dtdt_menu(self, debug=False):
+        """
+        Menu for selecting Decision Tree models for both sides in Decision Tree vs Decision Tree.
+        """
+        self.screen.fill(config.BLACK)
+        title = self.font.render("Select Decision Tree Models", True, config.WHITE)
+        left_label = self.font.render("Red DT:", True, config.WHITE)
+        right_label = self.font.render("Yellow DT:", True, config.WHITE)
+        dt_types = ["ID3", "Ruleset", "Bagging"]
+        left_idx = 0
+        right_idx = 0
+        start_button = self.font.render("Start", True, config.WHITE)
+        back_button = self.font.render("Back", True, config.WHITE)
+        left_rect = pygame.Rect(self.width // 2 - 200, self.height // 2 - 40, 180, 60)
+        right_rect = pygame.Rect(self.width // 2 + 20, self.height // 2 - 40, 180, 60)
+        start_rect = pygame.Rect(self.width // 2 - 60, self.height // 2 + 60, 120, 50)
+        back_rect = pygame.Rect(self.width // 2 - 60, self.height // 2 + 130, 120, 50)
+
+        while True:
+            self.screen.fill(config.BLACK)
+            self.screen.blit(title, (self.width // 2 - title.get_width() // 2, self.height // 2 - 160))
+            self.screen.blit(left_label, (left_rect.x, left_rect.y - 40))
+            self.screen.blit(right_label, (right_rect.x, right_rect.y - 40))
+            pygame.draw.rect(self.screen, config.WHITE, left_rect, 2)
+            pygame.draw.rect(self.screen, config.WHITE, right_rect, 2)
+            left_dt = self.font.render(dt_types[left_idx], True, config.WHITE)
+            right_dt = self.font.render(dt_types[right_idx], True, config.WHITE)
+            self.screen.blit(left_dt, (left_rect.x + 20, left_rect.y + 10))
+            self.screen.blit(right_dt, (right_rect.x + 20, right_rect.y + 10))
+            pygame.draw.rect(self.screen, config.WHITE, start_rect, 2)
+            pygame.draw.rect(self.screen, config.WHITE, back_rect, 2)
+            self.screen.blit(start_button, (start_rect.x + 10, start_rect.y + 5))
+            self.screen.blit(back_button, (back_rect.x + 10, back_rect.y + 5))
+            pygame.display.update()
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    exit()
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                    return
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    x, y = event.pos
+                    if left_rect.collidepoint(x, y):
+                        left_idx = (left_idx + 1) % len(dt_types)
+                    elif right_rect.collidepoint(x, y):
+                        right_idx = (right_idx + 1) % len(dt_types)
+                    elif start_rect.collidepoint(x, y):
+                        left_model, left_rules = self._load_dt_model(dt_types[left_idx])
+                        right_model, right_rules = self._load_dt_model(dt_types[right_idx])
+                        self.run_dtdt(left_model, right_model, left_rules, right_rules, debug=debug)
+                        return
+                    elif back_rect.collidepoint(x, y):
+                        return
+
+    def _load_dt_model(self, dt_type):
+        if dt_type == "ID3":
+            model = ID3Tree.load_model(os.path.join("models", "id3_analize.pkl"))
+            rules = model.build_rules()
+            return model, rules
+        elif dt_type == "Ruleset":
+            model = Ruleset.load_model(os.path.join("models", "ruleset_analize.pkl"))
+            return model, None
+        elif dt_type == "Bagging":
+            model = Bagging.load_model(os.path.join("models", "bagging_analize.pkl"))
+            return model, None
+        return None, None
+
+    def run_avdt(self, dt_model, rules=None, debug=False, ai1_iter=config.ITERATION):
+        """
+        Runs Monte Carlo vs Decision Tree game loop.
+        Monte Carlo is always player 1, Decision Tree is player -1.
+        """
+        while not self.game.is_over():
+            if self.check_escape():
+                return
+            self.draw_board()
+            if self.game.turn == 1:
+                # Monte Carlo's turn
+                root = Node(self.game)
+                monte_carlo = MonteCarlo(iteration=ai1_iter, debug=debug) if ai1_iter >= config.MEDIUMLEVEL else MonteCarlo_Single(iteration=ai1_iter, debug=debug)
+                start_time = timeit.default_timer()
+                best_child, scores = monte_carlo.search(root)
+                end_time = timeit.default_timer()
+                if debug:
+                    print(scores)
+                    print(f"AI {self.game.turn} took {end_time - start_time:.2f} seconds to decide.")
+                    drawer = Drawer()
+                    G = drawer.build_tree_graph(root, depth=2, max_nodes=100)
+                    drawer.draw_tree(G)
+
+                self.game.play(best_child)
+            else:
+                # Decision Tree's turn
+                row = self.game.board.flatten()
+                number_of_pieces = np.count_nonzero(row)
+                player_1 = np.copy(row)
+                player_1[player_1 == -1] = 0
+                player_2 = np.copy(row)
+                player_2[player_2 == 1] = 0
+                player_2[player_2 == -1] = 1
+                row = np.append(player_1, player_2)
+                row = np.append(row, number_of_pieces)
+                row = np.append(row, 0)
+                row = row.tolist()
+                model_pred = None
+                if rules is not None:
+                    for rule in rules:
+                        model_pred = rule.predict(row)
+                        if model_pred is not None:
+                            break
+                    if model_pred is None:
+                        model_pred = -1
+                else:
+                    model_pred, _ = dt_model.predict(row)
+                legal_moves = self.game.legal_moves()
+                if model_pred not in legal_moves:
+                    model_pred = random.choice(legal_moves)
+                self.game.play(model_pred)
+        self.draw_board()
+        self.end_game_message()
+
+    def run_dtdt(self, red_model, yellow_model, red_rules=None, yellow_rules=None, debug=False):
+        """
+        Runs Decision Tree vs Decision Tree game loop.
+        left_model is player 1, right_model is player -1.
+        """
+        while not self.game.is_over():
+            if self.check_escape():
+                return
+            self.draw_board()
+            row = self.game.board.flatten()
+            number_of_pieces = np.count_nonzero(row)
+            player_1 = np.copy(row)
+            player_1[player_1 == -1] = 0
+            player_2 = np.copy(row)
+            player_2[player_2 == 1] = 0
+            player_2[player_2 == -1] = 1
+            row = np.append(player_1, player_2)
+            row = np.append(row, number_of_pieces)
+            row = np.append(row, 0)
+            row = row.tolist()
+            model_pred = None
+            if self.game.turn == 1:
+                if red_rules is not None:
+                    for rule in red_rules:
+                        model_pred = rule.predict(row)
+                        if model_pred is not None:
+                            break
+                    if model_pred is None:
+                        model_pred = -1
+                else:
+                    model_pred, _ = red_model.predict(row)
+            else:
+                if yellow_rules is not None:
+                    for rule in yellow_rules:
+                        model_pred = rule.predict(row)
+                        if model_pred is not None:
+                            break
+                    if model_pred is None:
+                        model_pred = -1
+                else:
+                    model_pred, _ = yellow_model.predict(row)
+            legal_moves = self.game.legal_moves()
+            if model_pred not in legal_moves:
+                model_pred = random.choice(legal_moves)
+            self.game.play(model_pred)
+            pygame.time.wait(500)
+        self.draw_board()
+        self.end_game_message()
 
     def ava_menu(self, debug=False):
         """
@@ -319,7 +797,6 @@ class ConnectFourGUI:
                         except ValueError:
                             error_message = "Please enter valid numbers."
 
-
     def mainMenu(self):
         """
         Displays the main menu and handles navigation to different game modes and options.
@@ -361,9 +838,9 @@ class ConnectFourGUI:
                     elif self.width // 2 - pvp_button.get_width() // 2 < x < self.width // 2 + pvp_button.get_width() // 2 and self.height // 2 - 110 < y < self.height // 2 - 70:
                         self.run_pvp()
                     elif self.width // 2 - pva_button.get_width() // 2 < x < self.width // 2 + pva_button.get_width() // 2 and self.height // 2 - 50 < y < self.height // 2 - 10:
-                        self.pva_menu(debug)
+                        self.ai_or_dt_menu(debug)
                     elif self.width // 2 - ava_button.get_width() // 2 < x < self.width // 2 + ava_button.get_width() // 2 and self.height // 2 + 10 < y < self.height // 2 + 50:
-                        self.ava_menu(debug)
+                        self.models_menu(debug)
                     elif self.width // 2 - editor_text.get_width() // 2 < x < self.width // 2 + editor_text.get_width() // 2 and self.height // 2 + 70 < y < self.height // 2 + 110:
                         editor = BoardEditor()
                         editor.run_editor(debug)
